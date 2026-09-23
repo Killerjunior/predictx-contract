@@ -1,6 +1,7 @@
 #![no_std]
 
 mod matches;
+mod payouts;
 mod staking;
 pub(crate) mod token_utils;
 
@@ -416,6 +417,21 @@ impl PredictionMarket {
 
     pub fn get_match_count(env: Env) -> u64 {
         matches::get_match_count(&env)
+    }
+
+    // ── Payouts ───────────────────────────────────────────────────────────────
+
+    /// Claim winnings after a resolved poll.
+    ///
+    /// If the winning pool is empty (every staker was on the losing side),
+    /// any staker may recover their original stake fee-free.  See
+    /// [`payouts::claim_winnings`] for the full description.
+    pub fn claim_winnings(
+        env: Env,
+        claimant: Address,
+        poll_id: u64,
+    ) -> Result<i128, PredictXError> {
+        payouts::claim_winnings(&env, claimant, poll_id)
     }
 }
 

@@ -17,14 +17,14 @@ jobs:
               run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev libudev-dev pkg-config
 
             - name: Install Rust toolchain
-              uses: dtolnay/rust-toolchain@1.82.0
+              uses: dtolnay/rust-toolchain@stable
               with:
-                  toolchain: "1.82.0"
+                  toolchain: stable
                   target: wasm32-unknown-unknown
                   override: true
 
-            - name: Install Stellar CLI
-              run: cargo install --locked stellar-cli --features opt
+            - name: Install Soroban CLI
+              run: cargo install --locked soroban-cli
 
             - name: Build all contracts (WASM)
               run: cargo build --target wasm32-unknown-unknown --release

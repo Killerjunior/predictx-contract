@@ -24,7 +24,7 @@ jobs:
                   override: true
 
             - name: Install Soroban CLI
-              run: cargo install --locked soroban-cli
+              run: cargo install --locked soroban-cli --version 22.6.0
 
             - name: Build all contracts (WASM)
               run: cargo build --target wasm32-unknown-unknown --release

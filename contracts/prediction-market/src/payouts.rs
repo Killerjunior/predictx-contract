@@ -429,6 +429,24 @@ mod test {
         );
     }
 
+    #[test]
+    fn successful_claim_marks_stake_as_claimed() {
+        let s = setup();
+        let poll_id: u64 = 102;
+        let winner = Address::generate(&s.env);
+        let winning_stake = 100_000_000;
+        let losing_pool = 300_000_000;
+
+        mint_tokens(&s, &s.contract_id, winning_stake + losing_pool);
+        inject_resolved_poll(&s, poll_id, true, winning_stake, losing_pool);
+        inject_stake(&s, poll_id, &winner, winning_stake, StakeSide::Yes);
+
+        s.client.claim_winnings(&winner, &poll_id);
+
+        let stake = s.client.get_stake_info(&poll_id, &winner);
+        assert!(stake.claimed);
+    }
+
     // ── Tests: normal claim path ──────────────────────────────────────────────
 
     /// A winner on the correct side receives their proportional payout.

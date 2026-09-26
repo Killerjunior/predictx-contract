@@ -421,6 +421,15 @@ impl PredictionMarket {
 
     // ── Payouts ───────────────────────────────────────────────────────────────
 
+    pub fn resolve_poll(
+        env: Env,
+        admin: Address,
+        poll_id: u64,
+        outcome: bool,
+    ) -> Result<(), PredictXError> {
+        payouts::resolve_poll(&env, admin, poll_id, outcome)
+    }
+
     /// Claim winnings after a resolved poll.
     ///
     /// If the winning pool is empty (every staker was on the losing side),
@@ -432,6 +441,14 @@ impl PredictionMarket {
         poll_id: u64,
     ) -> Result<i128, PredictXError> {
         payouts::claim_winnings(&env, claimant, poll_id)
+    }
+
+    pub fn calculate_winnings(
+        env: Env,
+        poll_id: u64,
+        user: Address,
+    ) -> Result<i128, PredictXError> {
+        payouts::calculate_winnings(&env, poll_id, user)
     }
 }
 

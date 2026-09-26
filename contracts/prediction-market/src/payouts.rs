@@ -5,6 +5,49 @@ use predictx_shared::{
 };
 use crate::{DataKey, get_platform_stats, set_platform_stats, token_utils};
 
+/// Resolve a poll using the configured admin and record its final outcome.
+pub fn resolve_poll(
+    env: &Env,
+    admin: Address,
+    poll_id: u64,
+    outcome: bool,
+) -> Result<(), PredictXError> {
+    admin.require_auth();
+    let stored_admin: Address = env
+        .storage()
+        .instance()
+        .get(&DataKey::Admin)
+        .ok_or(PredictXError::NotInitialized)?;
+    if admin != stored_admin {
+        return Err(PredictXError::Unauthorized);
+    }
+
+    let mut poll: Poll = env
+        .storage()
+        .persistent()
+        .get(&DataKey::Poll(poll_id))
+        .ok_or(PredictXError::PollNotFound)?;
+    if poll.status == PollStatus::Resolved {
+        return Err(PredictXError::PollAlreadyResolved);
+    }
+
+    poll.status = PollStatus::Resolved;
+    poll.outcome = Some(outcome);
+    poll.resolution_time = env.ledger().timestamp();
+    env.storage()
+        .persistent()
+        .set(&DataKey::Poll(poll_id), &poll);
+
+    let total_pool = poll.yes_pool + poll.no_pool;
+    let fee = total_pool * token_utils::get_platform_fee_bps(env) as i128
+        / BPS_DENOMINATOR as i128;
+    env.events().publish(
+        (Symbol::new(env, "PollResolved"), poll_id),
+        (outcome, total_pool, fee),
+    );
+    Ok(())
+}
+
 // ── Payout / claim engine ─────────────────────────────────────────────────────
 
 /// Claim winnings (or a full stake refund) after a poll resolves.
@@ -132,6 +175,42 @@ pub fn claim_winnings(
     );
 
     Ok(payout)
+}
+
+/// Calculate a resolved poll's payout for a user without transferring tokens.
+pub fn calculate_winnings(
+    env: &Env,
+    poll_id: u64,
+    user: Address,
+) -> Result<i128, PredictXError> {
+    let poll: Poll = env
+        .storage()
+        .persistent()
+        .get(&DataKey::Poll(poll_id))
+        .ok_or(PredictXError::PollNotFound)?;
+    let stake: Stake = env
+        .storage()
+        .persistent()
+        .get(&DataKey::Stake(poll_id, user))
+        .ok_or(PredictXError::NotStaker)?;
+    if poll.status != PollStatus::Resolved {
+        return Err(PredictXError::PollNotLocked);
+    }
+
+    let outcome = poll.outcome.ok_or(PredictXError::InvalidOutcome)?;
+    let winning_pool = if outcome { poll.yes_pool } else { poll.no_pool };
+    if winning_pool == 0 {
+        return Ok(stake.amount);
+    }
+    if stake.side != if outcome { StakeSide::Yes } else { StakeSide::No } {
+        return Ok(0);
+    }
+
+    let total_pool = poll.yes_pool + poll.no_pool;
+    let payout_pool = total_pool
+        * (BPS_DENOMINATOR - token_utils::get_platform_fee_bps(env)) as i128
+        / BPS_DENOMINATOR as i128;
+    Ok(stake.amount * payout_pool / winning_pool)
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

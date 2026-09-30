@@ -18,6 +18,8 @@ use soroban_sdk::{contract, contractimpl, contracttype, Address, Env, Vec};
 
 mod voting;
 
+pub mod voting;
+
 #[contract]
 pub struct VotingOracle;
 
@@ -29,6 +31,11 @@ pub struct AdminVerified {
 }
 
 #[contracttype]
+#[derive(Clone)]
+pub(crate) struct StoredPollStatus {
+    pub status: PollStatus,
+    pub updated_at: u64,
+    pub provisional_outcome: Option<bool>,
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct StoredPollStatus {
     status: PollStatus,
@@ -214,6 +221,7 @@ impl VotingOracle {
         let stored = StoredPollStatus {
             status,
             updated_at: env.ledger().timestamp(),
+            provisional_outcome: None,
             outcome: None,
             reasoning: String::from_str(&env, ""),
         };
